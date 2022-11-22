@@ -1,0 +1,100 @@
+server:
+  log_level: info
+
+metrics:
+  global:
+    scrape_interval: 60s
+    remote_write:
+    - url: http://${REMOTE_WRITE_HOST:-localhost:9009}/api/prom/push
+  configs:
+  - name: default
+    scrape_configs:
+    - job_name: avalanche
+      static_configs:
+      - targets: ['${AVALANCHE_HOST:-localhost:9001}']
+    - job_name: gqlgen-dynamodb
+      static_configs:
+      - targets: ['${GQLGEN_DYNAMODB_HOST:-localhost:8080}']
+
+logs:
+  configs:
+  - name: default
+    clients:
+      - url: http://${LOKI_HOST:-localhost:3100}/loki/api/v1/push
+    positions:
+      filename: /tmp/positions.yaml
+    scrape_configs:
+    - job_name: system
+      static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/*log
+
+    - job_name: containers
+      static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: containerlogs
+          __path__: /var/lib/docker/containers/*/*log
+
+      pipeline_stages:
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            attrs:
+      - json:
+          expressions:
+            tag:
+          source: attrs
+      - regex:
+          expression: (?P<image_name>(?:[^|]*[^|])).(?P<container_name>(?:[^|]*[^|])).(?P<image_id>(?:[^|]*[^|])).(?P<container_id>(?:[^|]*[^|]))
+          source: tag
+      - timestamp:
+          format: RFC3339Nano
+          source: time
+      - labels:
+          tag:
+          stream:
+          image_name:
+          container_name:
+          image_id:
+          container_id:
+      - output:
+          source: output
+
+traces:
+  configs:
+  - name: tempo
+    remote_write:
+      - endpoint: ${TEMPO_HOST:-localhost:4317}
+        insecure: true
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: "0.0.0.0:4317"
+          http:
+            endpoint: "0.0.0.0:4318"
+
+#
+# Integrations
+#
+# Uncomment individual integrations below to enable them. Some integrations are
+# enabled by default.
+#
+
+integrations:
+
+  # agent
+  agent:
+    # The Agent dashboards are written to assume Kubernetes, so we inject some
+    # fake Kubernetes labels here.
+    extra_labels:
+      cluster: docker-compose
+      namespace: docker-compose
+      container: grafana-agent
+      pod: grafana-agent-${HOSTNAME:-example}

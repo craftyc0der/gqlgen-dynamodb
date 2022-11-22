@@ -1,0 +1,160 @@
+directive @authorizedRole(
+	serviceRoles: [String!]!
+	userRoles: [String!]!
+) on FIELD_DEFINITION
+
+directive @customResolver(
+	package: String!
+	function: String!
+) on FIELD_DEFINITION
+
+directive @customSubquery(
+	package: String!
+	function: String!
+) on FIELD_DEFINITION
+
+directive @defaultValue(
+	envVar: String
+	static: String
+	variable: String
+) on FIELD_DEFINITION
+
+directive @dynamodbColumn(
+	fieldName: String!
+	fieldType: String!
+	jsonName: String
+) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+directive @dynamodbQuery(
+	table: String!
+	projectionExpression: String
+	index: String
+	limit: Int
+	sortColumn: String
+	sortAsc: Boolean
+	scanIndexBackward: Boolean
+	consistentRead: Boolean
+	insert: Boolean
+	update: Boolean
+	delete: Boolean
+	updateConditionExpression: String # valid dynamodb expression e.g. "fieldName = :id"
+	updateConditionValues: [String!] # in format [":variable=type=value"] e.g. [":allocatedDate=N=0"]
+	updateConditionError: String
+	deleteConditionExpression: String # valid dynamodb expression e.g. "fieldName = :id"
+	deleteConditionValues: [String!] # in format [":variable=type=value"] e.g. [":allocatedDate=N=0"]
+	deleteConditionError: String
+	preQueryPackage: String
+	preQueryFunction: String
+	postQueryPackage: String
+	postQueryFunction: String
+) on FIELD_DEFINITION
+
+directive @dynamodbSubquery(
+	foreignHashKey: String!
+	foreignHashKeyRequired: Boolean!
+	hashKeyModelName: String!
+	hashKeyFieldName: String!
+	hashKeyFieldType: String!
+	parentHashKeyModelName: String!
+	foreignRangeKey: String
+	foreignRangeKeyRequired: Boolean
+	rangeKeyModelName: String
+	rangeKeyFieldName: String
+	rangeKeyFieldType: String
+	parentRangeKeyModelName: String
+	className: String!
+	table: String!
+	limit: Int
+) on FIELD_DEFINITION
+
+directive @hash(fieldName: String!) on FIELD_DEFINITION
+
+directive @immutable(errorMessage: String!) on FIELD_DEFINITION
+
+# an immutable timestamp will not be changed automatically on update
+directive @timestamp(immutable: Boolean!) on FIELD_DEFINITION
+
+directive @uuid(hashKey: Boolean!) on FIELD_DEFINITION
+
+directive @dynamodbHashKey on ARGUMENT_DEFINITION
+
+directive @dynamodbRangeKey on ARGUMENT_DEFINITION
+
+directive @example(value: String!) on ARGUMENT_DEFINITION
+
+directive @mutationCondition(expression: String!) on ARGUMENT_DEFINITION
+
+directive @arrayInputUnique(fieldName: String!, exceptionRegex: String) on ARGUMENT_DEFINITION
+
+input TableIntFilterInput {
+	ne: Int
+	eq: Int
+	le: Int
+	lt: Int
+	ge: Int
+	gt: Int
+	between: [Int]
+}
+
+input TableStringFilterInput {
+	ne: String
+	eq: String
+	le: String
+	lt: String
+	ge: String
+	gt: String
+	between: [String]
+	beginsWith: String
+}
+
+input TableBooleanFilterInput {
+	ne: Boolean
+	eq: Boolean
+}
+
+input TableFloatFilterInput {
+	ne: Float
+	eq: Float
+	le: Float
+	lt: Float
+	ge: Float
+	gt: Float
+	between: [Float]
+}
+
+input TableIntKeyInput {
+	eq: Int
+	le: Int
+	lt: Int
+	ge: Int
+	gt: Int
+	between: [Int]
+}
+
+input TableStringKeyInput {
+	eq: String
+	le: String
+	lt: String
+	ge: String
+	gt: String
+	between: [String]
+	beginsWith: String
+}
+
+input TableBooleanKeyInput {
+	eq: Boolean
+}
+
+input TableFloatKeyInput {
+	eq: Float
+	le: Float
+	lt: Float
+	ge: Float
+	gt: Float
+	between: [Float]
+}
+
+schema {
+  query: Query,
+  mutation: Mutation
+}

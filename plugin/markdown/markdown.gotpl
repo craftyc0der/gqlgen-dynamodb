@@ -1,0 +1,305 @@
+--->
+# Table of Contents
+
+* [Types](#types)
+* [Queries](#queries)
+* [Mutations](#mutations)
+{{- $referenceTypes := .ReferencedTypes -}}
+{{- $queries := .QueryRoot.Fields -}}
+{{- $mutations := .MutationRoot.Fields }}
+
+# Types
+
+{{- range $typeName, $typeValue := .Schema.Types -}}
+{{ if selectTypes $typeValue }}
+
+* [{{$typeName}}](#{{lc $typeName}})
+{{ end -}}
+{{ end }}
+
+{{- range $typeName, $typeValue := .Schema.Types -}}
+  {{- if selectTypes $typeValue }}
+### {{$typeName}}
+
+> {{$typeValue.Description}}
+
+Name | Type | Description
+-|-|-
+    {{- range $field := $typeValue.Fields }}
+      {{- if $field.Type.Elem }}
+{{$field.Name}} | {{$field.Type.Elem.NamedType}} | {{$field.Description}}
+      {{- else }}
+{{$field.Name}} | {{$field.Type.NamedType}} | {{$field.Description}}
+      {{- end }}
+    {{- end }}
+
+### Related Queries
+
+{{ range $resolver := $queries -}}
+  {{- generateRelatedQueries $resolver $typeName -}}
+{{ end }}
+
+### Related Mutations
+
+{{ range $resolver := $mutations -}}
+  {{- generateRelatedQueries $resolver $typeName -}}
+{{- end }}
+---
+  {{- end }}
+{{ end }}
+
+# Queries
+
+{{ range $resolver := $queries -}}
+{{ if eq $resolver.GoReceiverName "obj" }}
+
+* [{{lcFirst $resolver.FieldDefinition.Name}}](#{{lc $resolver.FieldDefinition.Name}})
+{{ end -}}
+{{ end }}
+
+{{ range $resolver := $queries -}}
+  {{- if eq $resolver.GoReceiverName "obj" -}}
+	## {{lcFirst $resolver.FieldDefinition.Name}}
+  {{- if $resolver.FieldDefinition.Description }}
+
+> {{$resolver.FieldDefinition.Description}}
+  {{- end}}
+
+### Roles Allowed
+
+{{ range $rd := $resolver.Directives -}}
+  {{- if eq $rd.Name "authorizedRole" -}}
+    {{- generateRoles (index $rd.Args 0) -}}
+  {{- end -}}
+{{- end -}}
+
+  {{- if $resolver.FieldDefinition.Arguments}}
+
+### Arguments
+
+Name | Type | Required | Key | Description | Example Value
+-|-|-|-|-|-
+    {{- range $argument := $resolver.FieldDefinition.Arguments }}
+{{$argument.Name}} |
+      {{- if $argument.Type.NonNull -}}
+        {{- if $argument.Type.Elem -}}
+          {{- if $argument.Type.NonNull -}}
+            [{{$argument.Type.Elem.NamedType}}!]! | true
+          {{- else -}}
+            [{{$argument.Type.Elem.NamedType}}]! | true
+          {{- end -}}
+        {{- else -}}
+          {{- if $argument.Type.NonNull -}}
+            {{$argument.Type.NamedType}}! | true
+          {{- else -}}
+            {{$argument.Type.NamedType}}! | true
+          {{- end -}}
+        {{- end -}}
+      {{- else -}}
+        {{- if $argument.Type.Elem -}}
+          {{- if $argument.Type.NonNull -}}
+            [{{$argument.Type.Elem.NamedType}}] | false
+          {{- else -}}
+            [{{$argument.Type.Elem.NamedType}}] | false
+          {{- end -}}
+        {{- else -}}
+          {{- if $argument.Type.NonNull -}}
+            {{$argument.Type.NamedType}} | false
+          {{- else -}}
+            {{$argument.Type.NamedType}} | false
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+|
+      {{- range $ad := $argument.Directives -}}
+        {{- if eq $ad.Name "dynamodbHashKey" -}}
+          hash key
+        {{- end -}}
+        {{- if eq $ad.Name "dynamodbRangeKey" -}}
+          range key
+        {{- end -}}
+      {{- end -}}
+| {{$argument.Description}} |
+      {{- range $ad := $argument.Directives -}}
+        {{- if eq $ad.Name "example" -}}
+          `{{ (index $ad.Arguments 0).Value.Raw }}`
+        {{- end -}}
+      {{- end -}}
+    {{ end -}}
+  {{ end }}
+
+### Output Type
+
+{{ generateRelatedType $referenceTypes $resolver.TypeReference.Definition.Name }}
+
+### Example Query
+
+```graphql
+query {
+  {{$resolver.FieldDefinition.Name}}(
+    {{- range $argument := $resolver.FieldDefinition.Arguments }}
+      {{$argument.Name}}:
+        {{- range $ad := $argument.Directives -}}
+          {{- if eq $ad.Name "example" }} {{ generateExample $argument }}
+          {{- end -}}
+        {{- end -}}
+    {{- end }}
+  ) {
+    {{- range $outputField := $resolver.TypeReference.Definition.Fields }}
+    {{generateOutputFields $referenceTypes $outputField 0}}
+    {{- end }}
+  }
+}
+```
+{{ end -}}
+{{ end }}
+
+# Mutations
+
+{{ range $resolver := $mutations -}}
+{{ if eq $resolver.GoReceiverName "obj" }}
+
+* [{{lcFirst $resolver.FieldDefinition.Name}}](#{{lc $resolver.FieldDefinition.Name}})
+{{ end -}}
+{{ end }}
+
+{{ range $resolver := $mutations -}}
+  {{- if eq $resolver.GoReceiverName "obj" -}}
+	## {{lcFirst $resolver.FieldDefinition.Name}}
+  {{- if $resolver.FieldDefinition.Description }}
+
+> {{$resolver.FieldDefinition.Description}}
+  {{- end}}
+
+### Roles Allowed
+
+{{ range $rd := $resolver.Directives -}}
+  {{- if eq $rd.Name "authorizedRole" -}}
+    {{- generateRoles (index $rd.Args 0) -}}
+  {{- end -}}
+{{- end -}}
+
+  {{- if $resolver.FieldDefinition.Arguments}}
+
+### Mutations Allowed
+
+Insert | Update | Delete
+-|-|-
+{{ range $rd := $resolver.Directives -}}
+  {{ if eq $rd.Name "dynamodbQuery"}}
+    {{- range $rda := $rd.Args -}}
+      {{ if eq $rda.VarName "insert" }}
+        {{- if eq $rda.Value true -}}
+          true |
+        {{- else -}}
+          false |
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- range $rd := $resolver.Directives -}}
+  {{ if eq $rd.Name "dynamodbQuery"}}
+    {{- range $rda := $rd.Args -}}
+      {{ if eq $rda.VarName "update" }}
+        {{- if eq $rda.Value true -}}
+          true |
+        {{- else -}}
+          false |
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- range $rd := $resolver.Directives -}}
+  {{ if eq $rd.Name "dynamodbQuery"}}
+    {{- range $rda := $rd.Args -}}
+      {{ if eq $rda.VarName "delete" }}
+        {{- if eq $rda.Value true -}}
+          true
+        {{- else -}}
+          false
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end }}
+
+### Arguments
+
+Name | Type | Required | Key | Description | Example Value
+-|-|-|-|-|-
+    {{- range $argument := $resolver.FieldDefinition.Arguments }}
+{{$argument.Name}} |
+      {{- if $argument.Type.NonNull -}}
+        {{- if $argument.Type.Elem -}}
+          {{- if $argument.Type.NonNull -}}
+            [{{$argument.Type.Elem.NamedType}}!]! | true
+          {{- else -}}
+            [{{$argument.Type.Elem.NamedType}}]! | true
+          {{- end -}}
+        {{- else -}}
+          {{- if $argument.Type.NonNull -}}
+            {{$argument.Type.NamedType}}! | true
+          {{- else -}}
+            {{$argument.Type.NamedType}}! | true
+          {{- end -}}
+        {{- end -}}
+      {{- else -}}
+        {{- if $argument.Type.Elem -}}
+          {{- if $argument.Type.NonNull -}}
+            [{{$argument.Type.Elem.NamedType}}] | false
+          {{- else -}}
+            [{{$argument.Type.Elem.NamedType}}] | false
+          {{- end -}}
+        {{- else -}}
+          {{- if $argument.Type.NonNull -}}
+            {{$argument.Type.NamedType}} | false
+          {{- else -}}
+            {{$argument.Type.NamedType}} | false
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+|
+      {{- range $ad := $argument.Directives -}}
+        {{- if eq $ad.Name "dynamodbHashKey" -}}
+          hash key
+        {{- end -}}
+        {{- if eq $ad.Name "dynamodbRangeKey" -}}
+          range key
+        {{- end -}}
+      {{- end -}}
+| {{$argument.Description}} |
+      {{- range $ad := $argument.Directives -}}
+        {{- if eq $ad.Name "example" -}}
+          `{{ (index $ad.Arguments 0).Value.Raw }}`
+        {{- end -}}
+      {{- end -}}
+    {{ end -}}
+  {{ end }}
+
+### Output Type
+
+{{ generateRelatedType $referenceTypes $resolver.TypeReference.Definition.Name }}
+
+### Example Mutation
+
+```graphql
+mutation {
+  {{$resolver.FieldDefinition.Name}}(
+    {{- range $argument := $resolver.FieldDefinition.Arguments }}
+      {{$argument.Name}}:
+        {{- range $ad := $argument.Directives -}}
+          {{- if eq $ad.Name "example" }} {{ generateExample $argument }}
+          {{- end -}}
+        {{- end -}}
+    {{- end }}
+  ) {
+    {{- range $outputField := $resolver.TypeReference.Definition.Fields }}
+    {{generateOutputFields $referenceTypes $outputField 0}}
+    {{- end }}
+  }
+}
+```
+{{ end -}}
+{{ end }}

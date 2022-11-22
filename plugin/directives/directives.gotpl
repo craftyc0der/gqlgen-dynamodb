@@ -1,0 +1,85 @@
+{{ reserveImport "context"  }}
+{{ reserveImport "fmt"  }}
+{{ reserveImport "io"  }}
+{{ reserveImport "strconv"  }}
+{{ reserveImport "time"  }}
+{{ reserveImport "sync"  }}
+{{ reserveImport "errors"  }}
+{{ reserveImport "bytes"  }}
+
+{{ reserveImport "github.com/vektah/gqlparser/v2" }}
+{{ reserveImport "github.com/vektah/gqlparser/v2/ast" }}
+{{ reserveImport "github.com/99designs/gqlgen/graphql" }}
+{{ reserveImport "github.com/99designs/gqlgen/graphql/introspection" }}
+
+{{ $root := . }}
+
+import "github.com/99designs/gqlgen/codegen"
+import "regexp"
+import "strconv"
+
+{{ range $directive := .Directives }}
+{{ if $directive.Args}}
+
+type Directive_{{$directive.Name|ucFirst}} struct {
+  {{ range $arg := $directive.Args }}
+  {{ $arg.Name | ucFirst }} {{ if eq ($arg.TypeReference.Target | ref) "int" }}int64
+  {{ else if eq ($arg.TypeReference.GO | ref) "[]string" }}[]string
+  {{ else }}{{- $arg.TypeReference.Target -}}
+  {{- end }}
+  {{- end }}
+}
+
+func Get{{$directive.Name|ucFirst}}(directive *codegen.Directive) Directive_{{$directive.Name|ucFirst}} {
+	var {{$directive.Name}} Directive_{{$directive.Name|ucFirst}}
+
+	for _, arg := range directive.Args {
+    {{ range $arg := $directive.Args }}
+		if arg.Name == "{{ $arg.Name }}" && arg.Value != interface{}(nil) {
+      {{- if or (eq $arg.Name "serviceRoles") (eq $arg.Name "userRoles") }}
+      for _, role := range arg.Value.([]interface{}) {
+				authorizedRole.{{ $arg.VarName|ucFirst }} = append(authorizedRole.{{ $arg.VarName|ucFirst }} , role.(string))
+			}
+      {{- else if eq ($arg.TypeReference.GO | ref) "[]string" }}
+      for _, role := range arg.Value.([]interface{}) {
+				{{$directive.Name}}.{{ $arg.Name|ucFirst }} = append({{$directive.Name}}.{{ $arg.VarName|ucFirst }} , role.(string))
+			}
+      {{- else if eq ($arg.TypeReference.Target | ref) "string" }}{{$directive.Name}}.{{ $arg.Name|ucFirst }} = fmt.Sprintf("%v", arg.Value)
+      {{- else if eq ($arg.TypeReference.Target | ref) "int" }}{{$directive.Name}}.{{ $arg.Name|ucFirst }} = arg.Value.(int64)
+      {{- else if eq ($arg.TypeReference.Target | ref) "bool" }} {{$directive.Name}}.{{ $arg.Name|ucFirst }} = arg.Value.(bool)
+      {{- end }}
+      continue
+		}
+    {{- end }}
+	}
+	return {{$directive.Name}}
+}
+
+func Extract{{$directive.Name|ucFirst}}(tag string) Directive_{{$directive.Name|ucFirst}} {
+	var {{$directive.Name}} Directive_{{$directive.Name|ucFirst}}
+
+  {{ range $arg := $directive.Args }}
+  {{ $arg.Name }}_res := regexp.MustCompile("{{ $arg.Name }}:([a-zA-Z0-9-]*)").FindAllStringSubmatch(tag, 1)
+  for i := range {{ $arg.Name }}_res {
+    val := {{ $arg.Name }}_res[i][1]
+    {{$directive.Name}}.{{ $arg.Name|ucFirst }}, _ =
+    {{- if or (eq $arg.VarName "serviceRoles") (eq $arg.VarName "userRoles") -}}
+      append(authorizedRole.{{ $arg.VarName|ucFirst }}, val), ""
+    {{- else if eq ($arg.TypeReference.GO | ref) "[]string" -}}
+      append({{$directive.Name}}.{{ $arg.VarName|ucFirst }}, val), ""
+    {{- else if eq ($arg.TypeReference.Target | ref) "string" -}}
+      val, ""
+    {{- else if eq ($arg.TypeReference.Target | ref) "int" -}}
+      strconv.ParseInt(val, 10, 64)
+    {{- else if eq ($arg.TypeReference.Target | ref) "bool" -}}
+      strconv.ParseBool(val)
+    {{- end }}
+    break
+  }
+  {{- end }}
+
+	return {{$directive.Name}}
+}
+
+{{- end }}
+{{- end }}
