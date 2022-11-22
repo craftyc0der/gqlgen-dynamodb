@@ -70,6 +70,8 @@ Run an example query:
 }
 ```
 
+![GraphQL Playground](query.png)
+
 It takes a few to start up the first time, but after that it should be pretty quick.
 
 I have included the Grafana stack so that you can see how you would use code generation to setup metrics, logging, and tracing as well. You can navigate to [http://localhost:3000](http://localhost:3000/d/AsDfGh123/database-performance?orgId=1&from=now-30m&to=now) to view the Grafana dashboard.
